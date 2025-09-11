@@ -49,7 +49,7 @@ pipeline {
                         docker run --rm \
                         --u 0:0 \
                         --v $(pwd):/src \
-                        owasp/dependency-check:latesst \
+                        owasp/dependency-check:latest \
                         --scan /src \
                         --nvdApiKey $NVD_API_KEY \
                         --disableYarnAudit \
