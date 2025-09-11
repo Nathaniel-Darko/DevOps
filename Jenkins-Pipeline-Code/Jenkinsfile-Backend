@@ -47,8 +47,8 @@ pipeline {
                 dir('Application-Code/backend') {
                     sh '''
                         docker run --rm \
-                        --u 0:0 \
-                        --v $(pwd):/src \
+                        -u 0:0 \
+                        -v $(pwd):/src \
                         owasp/dependency-check:latest \
                         --scan /src \
                         --nvdApiKey $NVD_API_KEY \
