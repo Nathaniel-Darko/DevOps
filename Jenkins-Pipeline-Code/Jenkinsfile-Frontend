@@ -11,6 +11,7 @@ pipeline {
         AWS_ECR_REPO_NAME = credentials('ECR_REPO1')
         AWS_DEFAULT_REGION = 'us-east-1'
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/"
+        NVD_API_KEY = credentials('nvd-api-key')  // <-- store your NVD API key in Jenkins credentials
     }
     stages {
         stage('Cleaning Workspace') {
@@ -21,7 +22,7 @@ pipeline {
         stage('Checkout from Git') {
             steps {
                 // Assuming Git credentials and repository are correctly setup
-                git branch: 'e2e-3-tier-DevSecOps', credentialsId: 'github-token', url: 'https://github.com/techlearn-center/DevOps.git'
+                git branch: 'e2e-3-tier-DevSecOps', credentialsId: 'github-token', url: 'https://github.com/Nathaniel-Darko/DevOps.git'
             }
         }
         stage('Sonarqube Analysis') {
@@ -37,14 +38,27 @@ pipeline {
             steps {
                 script {
                     // Ensure SonarQube integration is properly configured to use this step
-                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar'
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token'
                 }
             }
         }
-        stage('OWASP Dependency-Check Scan') {
+        stage('OWASP Dependency-Check with NVD API') {
             steps {
-                dir('Application-Code/frontend') {
-                    dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                dir('Application-Code/backend') {
+                    sh '''
+                        dependency-check.sh \
+                        --scan ./ \
+                        --nvdApiKey $NVD_API_KEY \
+                        --disableYarnAudit \
+                        --disableNodeAudit \
+                        --out dependency-check-report.html \
+                        --format HTML \
+                        --format XML
+                    '''
+                }
+            }
+            post {
+                always {
                     dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
                 }
             }
@@ -83,21 +97,21 @@ pipeline {
         }
         stage('Checkout Code') {
             steps {
-                 git branch: 'e2e-3-tier-DevSecOps', credentialsId: 'github-token', url: 'https://github.com/techlearn-center/DevOps.git'
+                 git branch: 'e2e-3-tier-DevSecOps', credentialsId: 'github-token', url: 'https://github.com/Nathaniel-Darko/DevOps.git'
             }
         }
         stage('Update Kubernetes Deployment') {
              environment {
                 GIT_REPO_NAME = "DevOps"
-                GIT_USER_NAME = "techlearn-center"
+                GIT_USER_NAME = "Nathaniel-Darko"
             }
             steps {
                 script {
                     dir('Kubernetes-Manifests-file/Frontend') {
                         withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                             sh '''
-                                git config user.email "techlearn-center@gmail.com"
-                                git config user.name "techlearn-center"
+                                git config user.email "nathanieldarko@ymail.com"
+                                git config user.name "Nathaniel-Darko"
                                 BUILD_NUMBER=${BUILD_NUMBER}
                                 echo $BUILD_NUMBER
                                 imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
